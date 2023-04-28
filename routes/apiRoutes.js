@@ -1,16 +1,16 @@
-const apiRoutes = require("express").Router();
-const path = require('path');
-const fs = require('fs');
-const uuid = require("../helpers/uuid");
+
+const apiRoutes = require('express').Router();
+const uuid = require('../helpers/uuid');
+const { readAndAppend, readFromFile , writeToFile} = require('../helpers/fsUtils');
 
 
-apiRoutes.get('/api/notes', (req, res) => {
-    res.sendFile(path.join(__dirname, '../db/db.json'));
+apiRoutes.get('/', (req, res) => {
+    readFromFile('./db/db.json').then((data) => res.json(JSON.parse(data)));
 });
  
 apiRoutes.get('/:id', (req, res) => {
     const noteId = req.params.id;
-    readFromFile('../db/db.json')
+    readFromFile('./db/db.json')
       .then((data) => JSON.parse(data))
       .then((json) => {
         const result = json.filter((note) => note.id === noteId);
@@ -19,54 +19,47 @@ apiRoutes.get('/:id', (req, res) => {
           : res.json('No note with that ID');
       });
   });
+  
+  apiRoutes.delete('/:id', (req, res) => {
+    const noteId = req.params.id;
+    readFromFile('./db/db.json')
+      .then((data) => JSON.parse(data))
+      .then((json) => {
+        // Make a new array of all tips except the one with the ID provided in the URL
+        const result = json.filter((note) => note.id !== noteId);
+  
+        // Save that array to the filesystem
+        writeToFile('./db/db.json', result);
+  
+        // Respond to the DELETE request
+        res.json(`Item ${noteId} has been deleted 🗑️`);
+      });
+  });
 
-apiRoutes.post('/api/notes', (req, res) => {
-    let db = fs.readFileSync('db/db.json');
-    db = JSON.parse(db);
-    res.json(db);
-    // creating body for note
-    let userNote = {
-        title: req.body.title,
-        text: req.body.text,
-        id: uniqid(),
-    };
+  apiRoutes.post('/', (req, res) => {
+    console.log(req.body);
+  
+    const { title , text } = req.body;
+  
+    if (req.body) {
+      const newNote = {
+        title,
+        text,
+        id: uuid(),
+      };
+  
+      readAndAppend(newNote, './db/db.json');
+      res.json(`note added successfully 🚀`);
+    } else {
+      res.error('Error in adding note');
+    }
+  });
+  
 
-    db.push(userNote);
-    fs.writeFileSync('db/db.json', JSON.stringify(db));
-    res.json(db);
 
-});
-
-
-
-apiRoutes.delete('/api/notes/:id', (req, res) => {
-
-    let db = JSON.parse(fs.readFileSync('db/db.json'))
-
-    let deleteNotes = db.filter(item => item.id !== req.params.id);
-
-    fs.writeFileSync('db/db.json', JSON.stringify(deleteNotes));
-    res.json(deleteNotes);
-
-})
-    ;
-
-    apiRoutes.post('/api/notes', (req, res) => {
-        let db = fs.readFileSync('db/db.json');
-        db = JSON.parse(db);
-        res.json(db);
-        // creating body for note
-        let userNote = {
-            title: req.body.title,
-            text: req.body.text,
-            id: uniqid(),
-        };
     
-        db.push(userNote);
-        fs.writeFileSync('db/db.json', JSON.stringify(db));
-        res.json(db);
-    
-    });
+
+   
 module.exports = apiRoutes;
 
 
